@@ -82,16 +82,57 @@
     }
     .btn-confirmar:hover { background: #1d4ed8; }
 
-    /* Marcadores circulares interactivos */
-    .marcador-pulso {
-      border-radius: 50%;
-      border: 2.5px solid #ffffff;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.35);
-      transition: transform 0.2s;
+    /* Pines de ubicación de alto contraste */
+    .pin-wrapper {
+      position: relative;
+      width: 36px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       cursor: pointer;
+      transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     }
-    .marcador-pulso:hover {
-      transform: scale(1.3);
+    .pin-wrapper:hover {
+      transform: scale(1.22) translateY(-4px);
+      z-index: 9999 !important;
+    }
+    .pin-svg {
+      width: 36px;
+      height: 44px;
+      filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45));
+    }
+
+    /* Animación de pulso cuando se selecciona un grupo */
+    @keyframes pulso-seleccion {
+      0% { transform: scale(1); opacity: 0.9; }
+      70% { transform: scale(2.4); opacity: 0; }
+      100% { transform: scale(2.4); opacity: 0; }
+    }
+    .aro-activo {
+      position: absolute;
+      bottom: 2px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      animation: pulso-seleccion 1.5s infinite;
+      pointer-events: none;
+    }
+
+    /* Etiqueta permanente con el nombre del grupo */
+    .etiqueta-grupo {
+      background: rgba(15, 23, 42, 0.88) !important;
+      color: #ffffff !important;
+      border: 1px solid rgba(255, 255, 255, 0.25) !important;
+      border-radius: 6px !important;
+      padding: 2px 6px !important;
+      font-size: 11px !important;
+      font-weight: 600 !important;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3) !important;
+      white-space: nowrap;
+    }
+    .etiqueta-grupo::before {
+      display: none !important;
     }
   </style>
 </head>
@@ -122,7 +163,7 @@
       <button class="btn-zona" data-zona="Verde"><i class="dot" style="background:#16a34a;"></i>Verde</button>
     </div>
 
-    <!-- 4. Selector de Mapa Base (100% Gratuitos sin API Key) -->
+    <!-- 4. Selector de Mapa Base -->
     <div class="selector-mapa">
       <button class="btn-capa activo" onclick="cambiarMapaBase('calles', this)">Calles / Avenidas</button>
       <button class="btn-capa" onclick="cambiarMapaBase('manzanas', this)">Manzanas / Lotes</button>
@@ -190,21 +231,17 @@
       { "Grupo familiar": "VILLA UNIÓN", "Zona": "Verde", "Nombre de lider": "Aparicio Celis Vara", "Dirección": "Mz. T5 Lt. 12, Villa Unión", "Celular": "991178369", "Latitud": -11.988639, "Longitud": -76.940028 }
     ];
 
-    // 1. Iniciar Leaflet con zoom fluido habilitado
+    // 1. Iniciar Leaflet
     var map = L.map('mapa-leaflet', { zoomControl: false, scrollWheelZoom: true }).setView([-12.025, -76.895], 13);
     L.control.zoom({ position: 'bottomleft' }).addTo(map);
 
-    // Capas de mapa base 100% gratuitas y sin API KEY
     var capasBase = {
-      // Estilo limpio y moderno con avenidas y calles (Esri World Street Map - sin API Key)
       calles: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
         attribution: 'Tiles &copy; Esri', maxZoom: 19
       }),
-      // Mapa detallado de manzanas, lotes y edificaciones (OpenStreetMap)
       manzanas: L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors', maxZoom: 19
       }),
-      // Vista Satelital Esri
       satelite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
         attribution: 'Tiles &copy; Esri', maxZoom: 19
       })
@@ -212,7 +249,6 @@
 
     var capaActual = capasBase.calles.addTo(map);
 
-    // Capa vectorial local de distritos (lima.js)
     if (typeof mapaLima !== 'undefined') {
       L.geoJSON(mapaLima, {
         style: { color: '#64748b', weight: 1.2, fillColor: 'transparent', fillOpacity: 0 }
@@ -226,24 +262,53 @@
       boton.classList.add('activo');
     }
 
-    // 2. Marcadores nativos en Leaflet (zoom y arrastre 100% libres)
+    // 2. Pines de alto contraste
     var capaMarcadores = L.layerGroup().addTo(map);
     var zonaActiva = 'Todas';
     var textoBusqueda = '';
     var grupoSeleccionado = null;
     var marcadorBusqueda = null;
 
-    function obtenerColorZona(zona) {
+    function obtenerEstiloZona(zona) {
       var z = String(zona).toLowerCase();
-      if (z.includes('amarillo')) return '#eab308';
-      if (z.includes('azul'))     return '#2563eb';
-      if (z.includes('rojo'))     return '#dc2626';
-      if (z.includes('verde'))    return '#16a34a';
-      return '#64748b';
+      // Usamos colores más intensos y bordes oscuros para máximo contraste
+      if (z.includes('amarillo')) return { fill: '#f59e0b', stroke: '#78350f', centro: '#ffffff' };
+      if (z.includes('azul'))     return { fill: '#2563eb', stroke: '#1e3a8a', centro: '#ffffff' };
+      if (z.includes('rojo'))     return { fill: '#dc2626', stroke: '#7f1d1d', centro: '#ffffff' };
+      if (z.includes('verde'))    return { fill: '#16a34a', stroke: '#14532d', centro: '#ffffff' };
+      return { fill: '#475569', stroke: '#0f172a', centro: '#ffffff' };
+    }
+
+    function crearIconoPin(zona, estaSeleccionado) {
+      var st = obtenerEstiloZona(zona);
+      var pulsoHtml = estaSeleccionado
+        ? '<div class="aro-activo" style="background:' + st.fill + '; border: 2px solid ' + st.stroke + ';"></div>'
+        : '';
+
+      var svgPin = `
+        <div class="pin-wrapper">
+          ${pulsoHtml}
+          <svg class="pin-svg" viewBox="0 0 36 44" xmlns="http://www.w3.org/2000/svg">
+            <path d="M18 1C9.16 1 2 8.16 2 17c0 11.2 16 26 16 26s16-14.8 16-26C34 8.16 26.84 1 18 1z"
+                  fill="${st.fill}" stroke="${st.stroke}" stroke-width="2.5"/>
+            <circle cx="18" cy="16.5" r="6" fill="${st.centro}" stroke="${st.stroke}" stroke-width="1.5"/>
+          </svg>
+        </div>
+      `;
+
+      return L.divIcon({
+        className: '',
+        html: svgPin,
+        iconSize: [36, 44],
+        iconAnchor: [18, 43],
+        tooltipAnchor: [0, -40]
+      });
     }
 
     function actualizarPuntos() {
       capaMarcadores.clearLayers();
+      var zoomActual = map.getZoom();
+      var mostrarEtiquetasFijas = zoomActual >= 15;
 
       var filtrados = datosCompletos.filter(function (item) {
         var coincideZona = (zonaActiva === 'Todas') || (item['Zona'] === zonaActiva);
@@ -257,38 +322,51 @@
       document.getElementById('contador').textContent = filtrados.length;
 
       filtrados.forEach(function (fila) {
-        var color = obtenerColorZona(fila['Zona']);
-        var icono = L.divIcon({
-          className: '',
-          html: '<div class="marcador-pulso" style="background-color:' + color + '; width:16px; height:16px;"></div>',
-          iconSize: [16, 16],
-          iconAnchor: [8, 8]
+        var esActivo = grupoSeleccionado && grupoSeleccionado['Grupo familiar'] === fila['Grupo familiar'];
+        var icono = crearIconoPin(fila['Zona'], esActivo);
+
+        var marker = L.marker([fila['Latitud'], fila['Longitud']], {
+          icon: icono,
+          zIndexOffset: esActivo ? 2000 : 500
         });
 
-        var marker = L.marker([fila['Latitud'], fila['Longitud']], { icon: icono });
-        marker.bindTooltip('<b>' + fila['Grupo familiar'] + '</b> (' + fila['Zona'] + ')', { direction: 'top' });
+        marker.bindTooltip(fila['Grupo familiar'], {
+          permanent: mostrarEtiquetasFijas || esActivo,
+          direction: 'top',
+          className: 'etiqueta-grupo'
+        });
+
         marker.on('click', function () {
           mostrarTarjetaGrupo(fila);
         });
+
         marker.addTo(capaMarcadores);
       });
     }
 
+    // Mostrar u ocultar etiquetas automáticamente al hacer zoom
+    map.on('zoomend', function () {
+      actualizarPuntos();
+    });
+
     function mostrarTarjetaGrupo(grupo) {
       grupoSeleccionado = grupo;
+      var st = obtenerEstiloZona(grupo['Zona']);
       var tarjeta = document.getElementById('tarjeta-seleccion');
-      tarjeta.style.borderTopColor = obtenerColorZona(grupo['Zona']);
+      tarjeta.style.borderTopColor = st.fill;
       document.getElementById('sel-grupo').textContent = grupo['Grupo familiar'];
       document.getElementById('sel-zona').textContent = grupo['Zona'];
       document.getElementById('sel-lider').textContent = grupo['Nombre de lider'];
       document.getElementById('sel-celular').textContent = grupo['Celular'];
       document.getElementById('sel-direccion').textContent = grupo['Dirección'];
       tarjeta.style.display = 'flex';
+      actualizarPuntos(); // Resalta el pin con pulso animado
     }
 
     function cerrarTarjeta() {
       document.getElementById('tarjeta-seleccion').style.display = 'none';
       grupoSeleccionado = null;
+      actualizarPuntos();
     }
 
     function enviarAlDashboard() {
@@ -299,7 +377,6 @@
       }, '*');
     }
 
-    // 3. Buscador Inteligente de Direcciones
     function buscarDireccion() {
       var texto = document.getElementById('input-direccion').value.trim();
       var estado = document.getElementById('estado-dir');

@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mapa de Grupos Familiares - Lima</title>
+  
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Límites distritales locales -->
+  <script src="./lima.js"></script>
+
+  <style>
+    * { box-sizing: border-box; font-family: 'Segoe UI', Roboto, sans-serif; }
+    body, html { margin: 0; padding: 0; width: 100%; height: 100%; background-color: #f1f5f9; overflow: hidden; }
+    #mapa-leaflet { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; background: #e2e8f0; }
+
+    /* Panel superior izquierdo: Buscadores y Filtros */
+    #panel-filtros {
+      position: absolute; top: 15px; left: 15px; z-index: 1000;
+      background: rgba(255, 255, 255, 0.97);
+      padding: 14px; border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+      width: 330px; display: flex; flex-direction: column; gap: 10px;
+    }
+    .titulo-panel { font-size: 15px; font-weight: 700; color: #1e293b; display: flex; justify-content: space-between; align-items: center; }
+    .contador { font-size: 12px; background: #e2e8f0; padding: 2px 8px; border-radius: 10px; color: #334155; }
+    
+    .grupo-input { display: flex; gap: 6px; }
+    .input-texto {
+      width: 100%; padding: 8px 10px; border: 1px solid #cbd5e1;
+      border-radius: 8px; font-size: 13px; outline: none;
+    }
+    .input-texto:focus { border-color: #2563eb; }
+
+    .btn-ir {
+      background: #2563eb; color: white; border: none; border-radius: 8px;
+      padding: 0 12px; font-weight: 600; font-size: 13px; cursor: pointer;
+      white-space: nowrap;
+    }
+    .btn-ir:hover { background: #1d4ed8; }
+
+    #estado-dir { font-size: 11px; color: #64748b; margin-top: -4px; }
+
+    .botones-zona { display: flex; flex-wrap: wrap; gap: 6px; }
+    .btn-zona {
+      border: 1px solid #cbd5e1; background: white; padding: 5px 10px;
+      border-radius: 20px; font-size: 12px; font-weight: 600; cursor: pointer;
+      display: flex; align-items: center; gap: 5px; transition: all 0.2s;
+    }
+    .btn-zona.activo { background: #1e293b; color: white; border-color: #1e293b; }
+    .dot { height: 9px; width: 9px; border-radius: 50%; display: inline-block; }
+
+    /* Selector de estilo de mapa */
+    .selector-mapa {
+      display: flex; gap: 4px; background: #f1f5f9; padding: 4px; border-radius: 8px;
+    }
+    .btn-capa {
+      flex: 1; border: none; background: transparent; padding: 5px;
+      font-size: 11px; font-weight: 600; color: #475569; border-radius: 6px; cursor: pointer;
+    }
+    .btn-capa.activo { background: white; color: #0f172a; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+
+    /* Tarjeta inferior derecha al hacer clic en un grupo */
+    #tarjeta-seleccion {
+      position: absolute; bottom: 20px; right: 20px; z-index: 1000;
+      background: white; padding: 18px; border-radius: 14px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.18); width: 320px;
+      display: none; flex-direction: column; gap: 8px;
+      border-top: 5px solid #3b82f6;
+    }
+    .tarjeta-header { display: flex; justify-content: space-between; align-items: flex-start; }
+    .tarjeta-titulo { font-size: 16px; font-weight: 700; color: #0f172a; margin: 0; }
+    .btn-cerrar { background: none; border: none; font-size: 18px; cursor: pointer; color: #64748b; }
+    .tarjeta-dato { font-size: 13px; color: #475569; margin: 0; line-height: 1.4; }
+    .btn-confirmar {
+      margin-top: 8px; background: #2563eb; color: white; border: none;
+      padding: 10px; border-radius: 8px; font-weight: 600; font-size: 13px;
+      cursor: pointer; transition: background 0.2s;
+    }
+    .btn-confirmar:hover { background: #1d4ed8; }
+
+    /* Animación de pulso para los puntos */
+    .marcador-pulso {
+      border-radius: 50%;
+      border: 2.5px solid #ffffff;
+      box-shadow: 0 0 0 2px rgba(0,0,0,0.25);
+      transition: transform 0.2s;
+      cursor: pointer;
+    }
+    .marcador-pulso:hover {
+      transform: scale(1.3);
+    }
+  </style>
+</head>
+<body>
+
+  <div id="panel-filtros">
+    <div class="titulo-panel">
+      <span>Grupos Familiares</span>
+      <span class="contador" id="contador">41</span>
+    </div>
+
+    <!-- 1. Buscador de direcciones -->
+    <div class="grupo-input">
+      <input type="text" id="input-direccion" class="input-texto" placeholder="Ej: Av. Estrella 617, Ate o Pariachi..." />
+      <button class="btn-ir" onclick="buscarDireccion()">Ir</button>
+    </div>
+    <div id="estado-dir">Escribe una vía, sector o distrito para ubicar</div>
+
+    <!-- 2. Filtro rápido de grupos o líderes -->
+    <input type="text" id="buscador" class="input-texto" placeholder="Filtrar grupo o líder en mapa..." />
+
+    <!-- 3. Filtros por Zona -->
+    <div class="botones-zona" id="contenedor-zonas">
+      <button class="btn-zona activo" data-zona="Todas">Todas</button>
+      <button class="btn-zona" data-zona="Amarillo"><i class="dot" style="background:#eab308;"></i>Amarillo</button>
+      <button class="btn-zona" data-zona="Azul"><i class="dot" style="background:#2563eb;"></i>Azul</button>
+      <button class="btn-zona" data-zona="Rojo"><i class="dot" style="background:#dc2626;"></i>Rojo</button>
+      <button class="btn-zona" data-zona="Verde"><i class="dot" style="background:#16a34a;"></i>Verde</button>
+    </div>
+
+    <!-- 4. Selector de Mapa Base -->
+    <div class="selector-mapa">
+      <button class="btn-capa activo" onclick="cambiarMapaBase('calles', this)">Calles / Manzanas</button>
+      <button class="btn-capa" onclick="cambiarMapaBase('satelite', this)">Satélite</button>
+      <button class="btn-capa" onclick="cambiarMapaBase('limpio', this)">Solo Distritos</button>
+    </div>
+  </div>
+
+  <!-- Tarjeta flotante que aparece al hacer clic en un punto -->
+  <div id="tarjeta-seleccion">
+    <div class="tarjeta-header">
+      <h3 class="tarjeta-titulo" id="sel-grupo">Nombre del Grupo</h3>
+      <button class="btn-cerrar" onclick="cerrarTarjeta()">&times;</button>
+    </div>
+    <p class="tarjeta-dato"><b>Zona:</b> <span id="sel-zona"></span></p>
+    <p class="tarjeta-dato"><b>Líder:</b> <span id="sel-lider"></span></p>
+    <p class="tarjeta-dato"><b>Celular:</b> <span id="sel-celular"></span></p>
+    <p class="tarjeta-dato"><b>Dirección:</b> <span id="sel-direccion"></span></p>
+    <button class="btn-confirmar" onclick="enviarAlDashboard()">Seleccionar y volver al Dashboard</button>
+  </div>
+
+  <div id="mapa-leaflet"></div>
+
+  <script>
+    var datosCompletos = [
+      { "Grupo familiar": "ESTRELLA", "Zona": "Amarillo", "Nombre de lider": "Aaron Martinez", "Dirección": "Av. Estrella 617, San Gregorio (Ref: Espalda Estadio Vitarte)", "Celular": "952398150", "Latitud": -12.026174, "Longitud": -76.91564 },
+      { "Grupo familiar": "AMAUTA 1", "Zona": "Amarillo", "Nombre de lider": "Raul Espinoza Vega", "Dirección": "Ref: Curva de Amauta", "Celular": "990075719", "Latitud": -12.0394677, "Longitud": -76.9049219 },
+      { "Grupo familiar": "AMIGOS DE LA PAZ", "Zona": "Amarillo", "Nombre de lider": "Enrique Huaman Palacios", "Dirección": "Pasaje Margaritas Mz. C Lt. 5B, Amigos de la Paz (Ref: Último paradero Línea 47, bajar dos cuadras)", "Celular": "931456189", "Latitud": -12.040766, "Longitud": -76.905902 },
+      { "Grupo familiar": "CERRO CANDELA", "Zona": "Amarillo", "Nombre de lider": "Javier Vilchez Robles", "Dirección": "No registrada", "Celular": "988151243", "Latitud": -12.0285428, "Longitud": -76.919899 },
+      { "Grupo familiar": "LAS AMERICAS", "Zona": "Amarillo", "Nombre de lider": "William Luis Pablo", "Dirección": "Av. La Esperanza, Calle 11 (Ref: Altura de la Pollería Nebraska)", "Celular": "983525412", "Latitud": -12.032269, "Longitud": -76.903604 },
+      { "Grupo familiar": "LOS PORTALES", "Zona": "Amarillo", "Nombre de lider": "Abel Cirilo Caso Huiza", "Dirección": "Prolongación Javier Prado 9147, 3ra Etapa, Ate (Ref: Frente al Grifo Pecsa)", "Celular": "946022505", "Latitud": -12.040467, "Longitud": -76.92434 },
+      { "Grupo familiar": "MANANTIAL", "Zona": "Amarillo", "Nombre de lider": "Lisbeth Rivera Marquina", "Dirección": "No registrada", "Celular": "944733887", "Latitud": -12.021825, "Longitud": -76.90688 },
+      { "Grupo familiar": "MANCHAY", "Zona": "Amarillo", "Nombre de lider": "Delfin Montero Buleje", "Dirección": "Calle Las Amapolas Mz. M Lt. 8, Santa Rosa de Manchay", "Celular": "913683182", "Latitud": -12.159722, "Longitud": -76.864417 },
+      { "Grupo familiar": "SANTA ROSA DE PRIALE", "Zona": "Amarillo", "Nombre de lider": "Otilia Quispe Delgadillo", "Dirección": "Mz. I Lt. 1, Asoc. de Vivienda El Jardín de Santa Rosa de Lima", "Celular": "922791727", "Latitud": -12.0244393, "Longitud": -76.8606258 },
+      { "Grupo familiar": "VISTA ALEGRE", "Zona": "Amarillo", "Nombre de lider": "Paulino Modesto Jimenez Callata", "Dirección": "Mz. C Lt. 1, Coop. Marañón (Ref: Espalda Grifo Vista Alegre)", "Celular": "902713399", "Latitud": -12.037869, "Longitud": -76.930123 },
+      { "Grupo familiar": "FRONTERA", "Zona": "Amarillo", "Nombre de lider": "Abner Condor", "Dirección": "Mz. C Lt. 13, Asoc. María Teresa, Pachacámac", "Celular": "928128870", "Latitud": -12.0800169, "Longitud": -76.8809151 },
+      { "Grupo familiar": "FORTALEZA", "Zona": "Azul", "Nombre de lider": "Maria Palacin Matias", "Dirección": "Calle Los Incas Mz. B Lt. 24 (Ref: Capilla de Fortaleza)", "Celular": "978400028", "Latitud": -12.030843, "Longitud": -76.94113 },
+      { "Grupo familiar": "26 DE MAYO", "Zona": "Azul", "Nombre de lider": "Johana Meza Mariano", "Dirección": "Pje. Manuel Mz. O Lt. 7, Asoc. Rosa Manuela (Ref: Frente a Ladrillería Car)", "Celular": "924402125", "Latitud": -12.02429, "Longitud": -76.92499 },
+      { "Grupo familiar": "ALEJANDRO ALVAREZ", "Zona": "Azul", "Nombre de lider": "Oscar Gomez Huiza", "Dirección": "Mz. 6 Lt. 27, Asoc. Alejandro Álvarez", "Celular": "933278030", "Latitud": -12.027433, "Longitud": -76.937249 },
+      { "Grupo familiar": "LAS BRISAS", "Zona": "Azul", "Nombre de lider": "Isaias Chahua Quispe", "Dirección": "Mz. 9 Lt. 2, Sector F", "Celular": "934048882", "Latitud": -12.032724, "Longitud": -76.930894 },
+      { "Grupo familiar": "LOS ANGELES", "Zona": "Azul", "Nombre de lider": "Antenor Bazan", "Dirección": "Pasaje Huancayo (Hyo) 35, Mercado Productores, Santa Anita (Ref: Paradero Volvo)", "Celular": "935027669", "Latitud": -12.032889, "Longitud": -76.933194 },
+      { "Grupo familiar": "PRODUCTORES", "Zona": "Azul", "Nombre de lider": "Daniel Alvarez Abanto", "Dirección": "Calle Andrómeda 103 (Ref: Parque 5)", "Celular": "996239798", "Latitud": -12.041602, "Longitud": -76.947208 },
+      { "Grupo familiar": "SOL DE VITARTE", "Zona": "Azul", "Nombre de lider": "Jose Luis Perez Castro", "Dirección": "Calle Antares 192, Urb. Sol de Vitarte", "Celular": "904702235", "Latitud": -12.037164, "Longitud": -76.939482 },
+      { "Grupo familiar": "ZAVALETA", "Zona": "Azul", "Nombre de lider": "Denis Torres Porras", "Dirección": "Mz. D Lt. 5, Jardines Zavaleta, Santa Anita (Ref: Espalda de la ex fábrica Surge, Av. Los Virreyes)", "Celular": "958060834", "Latitud": -12.0287, "Longitud": -76.943266 },
+      { "Grupo familiar": "1ERA ETAPA LAS MERCEDES", "Zona": "Rojo", "Nombre de lider": "Enrique Jaramillo Llana", "Dirección": "Mz. D Lt. 3, Asoc. Las Mercedes", "Celular": "954573466", "Latitud": -12.011205, "Longitud": -76.851522 },
+      { "Grupo familiar": "2DA ETAPA LAS MERCEDES", "Zona": "Rojo", "Nombre de lider": "Judith Quispe Poma", "Dirección": "Mz. J Lt. 6A, Asoc. Las Mercedes 2da Etapa, Gloria Grande", "Celular": "978002885", "Latitud": -12.01208, "Longitud": -76.85188 },
+      { "Grupo familiar": "ALBORADA", "Zona": "Rojo", "Nombre de lider": "Jaime Espiritu Panez", "Dirección": "Mz. A Lt. 20, Alborada, Gloria Grande", "Celular": "963644827", "Latitud": -12.010659, "Longitud": -76.851904 },
+      { "Grupo familiar": "EL PORTAL DE SANTA CLARA", "Zona": "Rojo", "Nombre de lider": "Emilio Lacho", "Dirección": "Mz. H Lt. 6, Asoc. El Portal de Santa Clara (Ref: Paradero Sedapal)", "Celular": "937524878", "Latitud": -12.019176, "Longitud": -76.87602 },
+      { "Grupo familiar": "HIJOS DE APURIMAC", "Zona": "Rojo", "Nombre de lider": "Soledad Tinoco", "Dirección": "No registrada", "Celular": "935761602", "Latitud": -12.0225685, "Longitud": -76.8706187 },
+      { "Grupo familiar": "LOS PINOS", "Zona": "Rojo", "Nombre de lider": "July Alania Laureano", "Dirección": "Calle Los Pinos Mz. L Lt. 4, Residencial Pariachi (Ref: Espalda del Colegio Leonardo Da Vinci)", "Celular": "992138493", "Latitud": -11.998406, "Longitud": -76.836551 },
+      { "Grupo familiar": "PARIACHI 1", "Zona": "Rojo", "Nombre de lider": "Victor Donato Cordova Camavilca", "Dirección": "Mz. F Lt. 20, Las Praderas de Pariachi 3ra Etapa (Ref: Espalda Grifo Pariachi, Parque Grande)", "Celular": "947617287", "Latitud": -12.007076, "Longitud": -76.844833 },
+      { "Grupo familiar": "PARIACHI 2", "Zona": "Rojo", "Nombre de lider": "Luis Israel Mandujano Cardenas", "Dirección": "Mz. 1 Lt. 19, Asoc. 3ra Etapa de Pariachi", "Celular": "945726612", "Latitud": -12.0071269, "Longitud": -76.8419439 },
+      { "Grupo familiar": "SAN GERMAN", "Zona": "Rojo", "Nombre de lider": "Juan Carlos Guadalupe Estrella", "Dirección": "Carretera Central Km. 13, San Germán, Gloria Baja (Ref: Torre de luz de alta tensión)", "Celular": "964128915", "Latitud": -12.010987, "Longitud": -76.859375 },
+      { "Grupo familiar": "TRIANGULO", "Zona": "Rojo", "Nombre de lider": "Alberto Pelinco", "Dirección": "Mz. T Lt. 1, 3ra Etapa Pariachi (Ref: Grifo Vimer)", "Celular": "988986109", "Latitud": -12.008906, "Longitud": -76.847293 },
+      { "Grupo familiar": "UCV 39 ZONA B HAUYCAN", "Zona": "Rojo", "Nombre de lider": "Tito Yparraguirre Vila", "Dirección": "No registrada", "Celular": "945824115", "Latitud": -12.0137199, "Longitud": -76.8214155 },
+      { "Grupo familiar": "VILLA QUISPE", "Zona": "Rojo", "Nombre de lider": "Jenifer Garcia", "Dirección": "No registrada", "Celular": "984863869", "Latitud": -12.0095, "Longitud": -76.849 },
+      { "Grupo familiar": "ZONA HM", "Zona": "Rojo", "Nombre de lider": "Jaime Espiritu Panez", "Dirección": "UCV 121-A Mz. A Lt. 2, Zona H, Huaycán (Ref: Casa Biohuerto Los Cipreses)", "Celular": "963644827", "Latitud": -12.015384, "Longitud": -76.814409 },
+      { "Grupo familiar": "9 DE SETIEMBRE", "Zona": "Verde", "Nombre de lider": "Natanael Camavilca Condor", "Dirección": "Av. 9 de Setiembre, Jicamarca", "Celular": "942087262", "Latitud": -11.988583, "Longitud": -76.942361 },
+      { "Grupo familiar": "ESTACION LAS FLORES", "Zona": "Verde", "Nombre de lider": "Geleni Huaroc Barreto", "Dirección": "Mz. A Lt. 8, Condominio Las Flores, Ate", "Celular": "966489759", "Latitud": -12.01675, "Longitud": -76.894472 },
+      { "Grupo familiar": "LA CAPITANA", "Zona": "Verde", "Nombre de lider": "Davi Yauri Jaramillo", "Dirección": "Av. Circunvalación Mz. B Lt. 1, La Capitana", "Celular": "913536906", "Latitud": -12.016817, "Longitud": -76.918993 },
+      { "Grupo familiar": "LA ERA ÑAÑA", "Zona": "Verde", "Nombre de lider": "Armando Rosillo Saldarriaga", "Dirección": "Las Poncianas Mz. B Lt. 7, Asoc. de Vivienda La Era II, Ñaña", "Celular": "992718842", "Latitud": -11.984363, "Longitud": -76.82819 },
+      { "Grupo familiar": "LAS LOMAS", "Zona": "Verde", "Nombre de lider": "Walter Eliseo Yaranga Molina", "Dirección": "No registrada", "Celular": "997586185", "Latitud": -11.929377, "Longitud": -76.9904629 },
+      { "Grupo familiar": "LAS PALMERAS", "Zona": "Verde", "Nombre de lider": "Oscar Quispe Garcia", "Dirección": "Mz. A Lt. 4, Asoc. Las Palmeras (Ref: Paradero entrada Nievería)", "Celular": "987367216", "Latitud": -11.99036, "Longitud": -76.903806 },
+      { "Grupo familiar": "PROYECTO 2000", "Zona": "Verde", "Nombre de lider": "Hector Yaranga Molina", "Dirección": "Calle Los Rosales Mz. L6 Lt. 2, Proyecto 2000 (Ref: Cancha deportiva Proyecto 2000)", "Celular": "949155348", "Latitud": -11.985221, "Longitud": -76.946717 },
+      { "Grupo familiar": "TERRAZAS", "Zona": "Verde", "Nombre de lider": "Jose Sedano", "Dirección": "Calle 36 Mz. A2 Lt. 61, Terrazas de Caraponguillo", "Celular": "966226813", "Latitud": -11.997778, "Longitud": -76.850722 },
+      { "Grupo familiar": "VILLA UNIÓN", "Zona": "Verde", "Nombre de lider": "Aparicio Celis Vara", "Dirección": "Mz. T5 Lt. 12, Villa Unión", "Celular": "991178369", "Latitud": -11.988639, "Longitud": -76.940028 }
+    ];
+
+    // 1. Iniciar Leaflet con zoom fluido habilitado
+    var map = L.map('mapa-leaflet', { zoomControl: false, scrollWheelZoom: true }).setView([-12.025, -76.895], 13);
+    L.control.zoom({ position: 'bottomleft' }).addTo(map);
+
+    // Capas de mapa base gratuitas sin API KEY
+    var capasBase = {
+      // Mapa de calles, avenidas, manzanas y referencias urbanas (Esri Street Map - sin API Key)
+      calles: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Tiles &copy; Esri', maxZoom: 19
+      }),
+      // Vista Satelital Esri (para ver techos, manzanas y lotes reales)
+      satelite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Tiles &copy; Esri', maxZoom: 19
+      }),
+      // Solo siluetas limpias de distritos (100% offline con lima.js)
+      limpio: L.layerGroup()
+    };
+
+    var capaActual = capasBase.calles.addTo(map);
+
+    // Capa vectorial local de distritos (lima.js)
+    var capaDistritos = null;
+    if (typeof mapaLima !== 'undefined') {
+      capaDistritos = L.geoJSON(mapaLima, {
+        style: { color: '#64748b', weight: 1.2, fillColor: '#e2e8f0', fillOpacity: 0.15 }
+      }).addTo(map);
+    }
+
+    function cambiarMapaBase(tipo, boton) {
+      map.removeLayer(capaActual);
+      capaActual = capasBase[tipo].addTo(map);
+      if (capaDistritos) {
+        capaDistritos.setStyle({
+          fillOpacity: tipo === 'limpio' ? 0.65 : 0.12
+        });
+      }
+      document.querySelectorAll('.btn-capa').forEach(b => b.classList.remove('activo'));
+      boton.classList.add('activo');
+    }
+
+    // 2. Capa nativa de marcadores en Leaflet (cero bloqueo de zoom o arrastre)
+    var capaMarcadores = L.layerGroup().addTo(map);
+    var zonaActiva = 'Todas';
+    var textoBusqueda = '';
+    var grupoSeleccionado = null;
+    var marcadorBusqueda = null;
+
+    function obtenerColorZona(zona) {
+      var z = String(zona).toLowerCase();
+      if (z.includes('amarillo')) return '#eab308';
+      if (z.includes('azul'))     return '#2563eb';
+      if (z.includes('rojo'))     return '#dc2626';
+      if (z.includes('verde'))    return '#16a34a';
+      return '#64748b';
+    }
+
+    function actualizarPuntos() {
+      capaMarcadores.clearLayers();
+
+      var filtrados = datosCompletos.filter(function (item) {
+        var coincideZona = (zonaActiva === 'Todas') || (item['Zona'] === zonaActiva);
+        var q = textoBusqueda.toLowerCase();
+        var coincideTexto = item['Grupo familiar'].toLowerCase().includes(q) || 
+                            item['Nombre de lider'].toLowerCase().includes(q) ||
+                            item['Dirección'].toLowerCase().includes(q);
+        return coincideZona && coincideTexto;
+      });
+
+      document.getElementById('contador').textContent = filtrados.length;
+
+      filtrados.forEach(function (fila) {
+        var color = obtenerColorZona(fila['Zona']);
+        var icono = L.divIcon({
+          className: '',
+          html: '<div class="marcador-pulso" style="background-color:' + color + '; width:16px; height:16px;"></div>',
+          iconSize: [16, 16],
+          iconAnchor: [8, 8]
+        });
+
+        var marker = L.marker([fila['Latitud'], fila['Longitud']], { icon: icono });
+        marker.bindTooltip('<b>' + fila['Grupo familiar'] + '</b> (' + fila['Zona'] + ')', { direction: 'top' });
+        marker.on('click', function () {
+          mostrarTarjetaGrupo(fila);
+        });
+        marker.addTo(capaMarcadores);
+      });
+    }
+
+    function mostrarTarjetaGrupo(grupo) {
+      grupoSeleccionado = grupo;
+      var tarjeta = document.getElementById('tarjeta-seleccion');
+      tarjeta.style.borderTopColor = obtenerColorZona(grupo['Zona']);
+      document.getElementById('sel-grupo').textContent = grupo['Grupo familiar'];
+      document.getElementById('sel-zona').textContent = grupo['Zona'];
+      document.getElementById('sel-lider').textContent = grupo['Nombre de lider'];
+      document.getElementById('sel-celular').textContent = grupo['Celular'];
+      document.getElementById('sel-direccion').textContent = grupo['Dirección'];
+      tarjeta.style.display = 'flex';
+    }
+
+    function cerrarTarjeta() {
+      document.getElementById('tarjeta-seleccion').style.display = 'none';
+      grupoSeleccionado = null;
+    }
+
+    function enviarAlDashboard() {
+      if (!grupoSeleccionado) return;
+      window.parent.postMessage({
+        tipo: 'GRUPO_SELECCIONADO',
+        datos: grupoSeleccionado
+      }, '*');
+    }
+
+    // 3. Buscador Inteligente de Direcciones
+    function buscarDireccion() {
+      var texto = document.getElementById('input-direccion').value.trim();
+      var estado = document.getElementById('estado-dir');
+      if (!texto) return;
+
+      estado.textContent = 'Buscando ubicación...';
+      estado.style.color = '#2563eb';
+
+      var q = texto.toLowerCase();
+      var coincidenciaLocal = datosCompletos.find(function (g) {
+        return g['Dirección'].toLowerCase().includes(q) || g['Grupo familiar'].toLowerCase().includes(q);
+      });
+
+      if (coincidenciaLocal) {
+        map.flyTo([coincidenciaLocal['Latitud'], coincidenciaLocal['Longitud']], 17, { duration: 1.2 });
+        mostrarTarjetaGrupo(coincidenciaLocal);
+        estado.textContent = 'Ubicado en grupo: ' + coincidenciaLocal['Grupo familiar'];
+        estado.style.color = '#16a34a';
+        return;
+      }
+
+      var consultaLimpia = texto.replace(/\(.*?\)/g, '').replace(/mz\.?\s*[a-z0-9]+/gi, '').replace(/lt\.?\s*[a-z0-9]+/gi, '').trim();
+      var url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=pe&q=' + encodeURIComponent(consultaLimpia + ', Lima, Peru');
+
+      fetch(url)
+        .then(res => res.json())
+        .then(resultados => {
+          if (resultados && resultados.length > 0) {
+            var lat = parseFloat(resultados[0].lat);
+            var lon = parseFloat(resultados[0].lon);
+
+            if (marcadorBusqueda) map.removeLayer(marcadorBusqueda);
+            marcadorBusqueda = L.marker([lat, lon]).addTo(map)
+              .bindPopup('<b>Ubicación encontrada:</b><br/>' + resultados[0].display_name)
+              .openPopup();
+
+            map.flyTo([lat, lon], 17, { duration: 1.5 });
+            estado.textContent = 'Mapa centrado en la dirección';
+            estado.style.color = '#16a34a';
+          } else {
+            estado.textContent = 'No se encontró exacta. Prueba con: Vía + Distrito';
+            estado.style.color = '#dc2626';
+          }
+        })
+        .catch(() => {
+          estado.textContent = 'Sin conexión para buscar calles nuevas';
+          estado.style.color = '#dc2626';
+        });
+    }
+
+    document.getElementById('input-direccion').addEventListener('keypress', function (e) {
+      if (e.key === 'Enter') buscarDireccion();
+    });
+
+    document.querySelectorAll('.btn-zona').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        document.querySelectorAll('.btn-zona').forEach(b => b.classList.remove('activo'));
+        btn.classList.add('activo');
+        zonaActiva = btn.getAttribute('data-zona');
+        actualizarPuntos();
+      });
+    });
+
+    document.getElementById('buscador').addEventListener('input', function (e) {
+      textoBusqueda = e.target.value;
+      actualizarPuntos();
+    });
+
+    actualizarPuntos();
+  </script>
+</body>
+</html>
