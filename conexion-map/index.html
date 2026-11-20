@@ -17,14 +17,43 @@
     body, html { margin: 0; padding: 0; width: 100%; height: 100%; background-color: #f1f5f9; overflow: hidden; }
     #mapa-leaflet { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; background: #e2e8f0; }
 
-    /* Panel superior izquierdo: Buscadores y Filtros */
+    /* Contenedor retraible superior izquierdo */
     #panel-filtros {
       position: absolute; top: 15px; left: 15px; z-index: 1000;
       background: rgba(255, 255, 255, 0.97);
       padding: 14px; border-radius: 12px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-      width: 330px; display: flex; flex-direction: column; gap: 10px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.16);
+      width: 340px; display: flex; flex-direction: column; gap: 10px;
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
+    /* Estado retraído por defecto hacia la izquierda */
+    #panel-filtros.retraido {
+      transform: translateX(calc(-100% - 15px));
+    }
+
+    /* Lengüeta retraíble pegada al borde derecho del panel */
+    #lengueta-panel {
+      position: absolute;
+      top: 12px;
+      right: -44px;
+      width: 44px;
+      height: 44px;
+      background: #1e293b;
+      color: #ffffff;
+      border: none;
+      border-radius: 0 12px 12px 0;
+      box-shadow: 4px 4px 14px rgba(0,0,0,0.18);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      transition: background 0.2s;
+    }
+    #lengueta-panel:hover {
+      background: #2563eb;
+    }
+
     .titulo-panel { font-size: 15px; font-weight: 700; color: #1e293b; display: flex; justify-content: space-between; align-items: center; }
     .contador { font-size: 12px; background: #e2e8f0; padding: 2px 8px; border-radius: 10px; color: #334155; }
     
@@ -42,7 +71,32 @@
     }
     .btn-ir:hover { background: #1d4ed8; }
 
-    #estado-dir { font-size: 11px; color: #64748b; margin-top: -4px; }
+    /* Fila debajo del buscador de direcciones con estado y botón Clear */
+    .fila-estado-clear {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-top: -4px;
+    }
+    #estado-dir { font-size: 11px; color: #64748b; flex: 1; }
+    .btn-clear {
+      background: #f1f5f9;
+      color: #475569;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 3px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .btn-clear:hover {
+      background: #fee2e2;
+      color: #dc2626;
+      border-color: #fca5a5;
+    }
 
     .botones-zona { display: flex; flex-wrap: wrap; gap: 6px; }
     .btn-zona {
@@ -58,8 +112,9 @@
       display: flex; gap: 4px; background: #f1f5f9; padding: 4px; border-radius: 8px;
     }
     .btn-capa {
-      flex: 1; border: none; background: transparent; padding: 5px;
+      flex: 1; border: none; background: transparent; padding: 6px 4px;
       font-size: 11px; font-weight: 600; color: #475569; border-radius: 6px; cursor: pointer;
+      white-space: nowrap;
     }
     .btn-capa.activo { background: white; color: #0f172a; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
 
@@ -103,7 +158,6 @@
       filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45));
     }
 
-    /* Animación de pulso cuando se selecciona un grupo */
     @keyframes pulso-seleccion {
       0% { transform: scale(1); opacity: 0.9; }
       70% { transform: scale(2.4); opacity: 0; }
@@ -138,18 +192,27 @@
 </head>
 <body>
 
-  <div id="panel-filtros">
+  <!-- Panel retraído por defecto (clase 'retraido') -->
+  <div id="panel-filtros" class="retraido">
+    <!-- Lengüeta retraíble -->
+    <button id="lengueta-panel" onclick="togglePanel()" title="Mostrar / Ocultar filtros">
+      <span id="icono-lengueta">☰</span>
+    </button>
+
     <div class="titulo-panel">
       <span>Grupos Familiares</span>
       <span class="contador" id="contador">41</span>
     </div>
 
-    <!-- 1. Buscador de direcciones -->
+    <!-- 1. Buscador de direcciones + Botón Clear -->
     <div class="grupo-input">
       <input type="text" id="input-direccion" class="input-texto" placeholder="Ej: Av. Estrella 617, Ate o Pariachi..." />
       <button class="btn-ir" onclick="buscarDireccion()">Ir</button>
     </div>
-    <div id="estado-dir">Escribe una vía, sector o distrito para ubicar</div>
+    <div class="fila-estado-clear">
+      <span id="estado-dir">Escribe una vía, sector o distrito</span>
+      <button type="button" class="btn-clear" onclick="limpiarTodo()" title="Limpiar búsqueda y quitar selección">Clear</button>
+    </div>
 
     <!-- 2. Filtro rápido de grupos o líderes -->
     <input type="text" id="buscador" class="input-texto" placeholder="Filtrar grupo o líder en mapa..." />
@@ -165,9 +228,9 @@
 
     <!-- 4. Selector de Mapa Base -->
     <div class="selector-mapa">
-      <button class="btn-capa activo" onclick="cambiarMapaBase('calles', this)">Calles / Avenidas</button>
-      <button class="btn-capa" onclick="cambiarMapaBase('manzanas', this)">Manzanas / Lotes</button>
-      <button class="btn-capa" onclick="cambiarMapaBase('satelite', this)">Satélite</button>
+      <button class="btn-capa activo" onclick="cambiarMapaBase('mapboxCalles', this)">Mapbox Calles</button>
+      <button class="btn-capa" onclick="cambiarMapaBase('osmLotes', this)">Manzanas / Lotes</button>
+      <button class="btn-capa" onclick="cambiarMapaBase('googleSatelite', this)">Satélite Google</button>
     </div>
   </div>
 
@@ -187,6 +250,11 @@
   <div id="mapa-leaflet"></div>
 
   <script>
+    // =========================================================================
+    // PEGA AQUÍ TU TOKEN DE MAPBOX ENTRE LAS COMILLAS:
+    var TOKEN_MAPBOX = 'pk.'+'eyJ1IjoiYmVuamFtaW5jaGF2ZXpuIiwiYSI6ImNtd3A1NmdscTBjZDkzMW9nMWFrYzZtMWYifQ.XZgXno3dyyHVXNzf7cCvQw';
+    // =========================================================================
+
     var datosCompletos = [
       { "Grupo familiar": "ESTRELLA", "Zona": "Amarillo", "Nombre de lider": "Aaron Martinez", "Dirección": "Av. Estrella 617, San Gregorio (Ref: Espalda Estadio Vitarte)", "Celular": "952398150", "Latitud": -12.026174, "Longitud": -76.91564 },
       { "Grupo familiar": "AMAUTA 1", "Zona": "Amarillo", "Nombre de lider": "Raul Espinoza Vega", "Dirección": "Ref: Curva de Amauta", "Celular": "990075719", "Latitud": -12.0394677, "Longitud": -76.9049219 },
@@ -211,7 +279,7 @@
       { "Grupo familiar": "2DA ETAPA LAS MERCEDES", "Zona": "Rojo", "Nombre de lider": "Judith Quispe Poma", "Dirección": "Mz. J Lt. 6A, Asoc. Las Mercedes 2da Etapa, Gloria Grande", "Celular": "978002885", "Latitud": -12.01208, "Longitud": -76.85188 },
       { "Grupo familiar": "ALBORADA", "Zona": "Rojo", "Nombre de lider": "Jaime Espiritu Panez", "Dirección": "Mz. A Lt. 20, Alborada, Gloria Grande", "Celular": "963644827", "Latitud": -12.010659, "Longitud": -76.851904 },
       { "Grupo familiar": "EL PORTAL DE SANTA CLARA", "Zona": "Rojo", "Nombre de lider": "Emilio Lacho", "Dirección": "Mz. H Lt. 6, Asoc. El Portal de Santa Clara (Ref: Paradero Sedapal)", "Celular": "937524878", "Latitud": -12.019176, "Longitud": -76.87602 },
-      { "Grupo familiar": "HIJOS DE APURIMAC", "Zona": "Rojo", "Nombre de lider": "Soledad Tinoco", "Dirección": "No registrada", "Celular": "935761602", "Latitud": -12.020937, "Longitud": -76.8696636 },
+      { "Grupo familiar": "HIJOS DE APURIMAC", "Zona": "Rojo", "Nombre de lider": "Soledad Tinoco", "Dirección": "No registrada", "Celular": "935761602", "Latitud": -12.0225685, "Longitud": -76.8706187 },
       { "Grupo familiar": "LOS PINOS", "Zona": "Rojo", "Nombre de lider": "July Alania Laureano", "Dirección": "Calle Los Pinos Mz. L Lt. 4, Residencial Pariachi (Ref: Espalda del Colegio Leonardo Da Vinci)", "Celular": "992138493", "Latitud": -11.998406, "Longitud": -76.836551 },
       { "Grupo familiar": "PARIACHI 1", "Zona": "Rojo", "Nombre de lider": "Victor Donato Cordova Camavilca", "Dirección": "Mz. F Lt. 20, Las Praderas de Pariachi 3ra Etapa (Ref: Espalda Grifo Pariachi, Parque Grande)", "Celular": "947617287", "Latitud": -12.007076, "Longitud": -76.844833 },
       { "Grupo familiar": "PARIACHI 2", "Zona": "Rojo", "Nombre de lider": "Luis Israel Mandujano Cardenas", "Dirección": "Mz. 1 Lt. 19, Asoc. 3ra Etapa de Pariachi", "Celular": "945726612", "Latitud": -12.0071269, "Longitud": -76.8419439 },
@@ -231,23 +299,31 @@
       { "Grupo familiar": "VILLA UNIÓN", "Zona": "Verde", "Nombre de lider": "Aparicio Celis Vara", "Dirección": "Mz. T5 Lt. 12, Villa Unión", "Celular": "991178369", "Latitud": -11.988639, "Longitud": -76.940028 }
     ];
 
+    var CENTRO_INICIAL = [-12.025, -76.895];
+    var ZOOM_INICIAL = 13;
+
     // 1. Iniciar Leaflet
-    var map = L.map('mapa-leaflet', { zoomControl: false, scrollWheelZoom: true }).setView([-12.025, -76.895], 13);
+    var map = L.map('mapa-leaflet', { zoomControl: false, scrollWheelZoom: true }).setView(CENTRO_INICIAL, ZOOM_INICIAL);
     L.control.zoom({ position: 'bottomleft' }).addTo(map);
 
     var capasBase = {
-      calles: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
-        attribution: 'Tiles &copy; Esri', maxZoom: 19
+      mapboxCalles: L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/{z}/{x}/{y}?access_token=' + TOKEN_MAPBOX, {
+        attribution: '&copy; Mapbox &copy; OpenStreetMap',
+        tileSize: 512,
+        zoomOffset: -1,
+        maxZoom: 20
       }),
-      manzanas: L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors', maxZoom: 19
+      osmLotes: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors',
+        maxZoom: 19
       }),
-      satelite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-        attribution: 'Tiles &copy; Esri', maxZoom: 19
+      googleSatelite: L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+        attribution: '&copy; Google Maps',
+        maxZoom: 20
       })
     };
 
-    var capaActual = capasBase.calles.addTo(map);
+    var capaActual = capasBase.mapboxCalles.addTo(map);
 
     if (typeof mapaLima !== 'undefined') {
       L.geoJSON(mapaLima, {
@@ -262,7 +338,15 @@
       boton.classList.add('activo');
     }
 
-    // 2. Pines de alto contraste
+    // 2. Lógica de lengüeta retraíble
+    function togglePanel() {
+      var panel = document.getElementById('panel-filtros');
+      var icono = document.getElementById('icono-lengueta');
+      panel.classList.toggle('retraido');
+      icono.textContent = panel.classList.contains('retraido') ? '☰' : '◀';
+    }
+
+    // 3. Pines de alto contraste
     var capaMarcadores = L.layerGroup().addTo(map);
     var zonaActiva = 'Todas';
     var textoBusqueda = '';
@@ -271,7 +355,6 @@
 
     function obtenerEstiloZona(zona) {
       var z = String(zona).toLowerCase();
-      // Usamos colores más intensos y bordes oscuros para máximo contraste
       if (z.includes('amarillo')) return { fill: '#f59e0b', stroke: '#78350f', centro: '#ffffff' };
       if (z.includes('azul'))     return { fill: '#2563eb', stroke: '#1e3a8a', centro: '#ffffff' };
       if (z.includes('rojo'))     return { fill: '#dc2626', stroke: '#7f1d1d', centro: '#ffffff' };
@@ -344,7 +427,6 @@
       });
     }
 
-    // Mostrar u ocultar etiquetas automáticamente al hacer zoom
     map.on('zoomend', function () {
       actualizarPuntos();
     });
@@ -360,13 +442,37 @@
       document.getElementById('sel-celular').textContent = grupo['Celular'];
       document.getElementById('sel-direccion').textContent = grupo['Dirección'];
       tarjeta.style.display = 'flex';
-      actualizarPuntos(); // Resalta el pin con pulso animado
+      actualizarPuntos();
     }
 
     function cerrarTarjeta() {
       document.getElementById('tarjeta-seleccion').style.display = 'none';
       grupoSeleccionado = null;
       actualizarPuntos();
+    }
+
+    // 4. Botón Clear: limpia textos, quita marcador de búsqueda, deselecciona grupo y restablece filtros
+    function limpiarTodo() {
+      document.getElementById('input-direccion').value = '';
+      document.getElementById('buscador').value = '';
+      textoBusqueda = '';
+
+      var estado = document.getElementById('estado-dir');
+      estado.textContent = 'Escribe una vía, sector o distrito';
+      estado.style.color = '#64748b';
+
+      if (marcadorBusqueda) {
+        map.removeLayer(marcadorBusqueda);
+        marcadorBusqueda = null;
+      }
+
+      zonaActiva = 'Todas';
+      document.querySelectorAll('.btn-zona').forEach(b => b.classList.remove('activo'));
+      var btnTodas = document.querySelector('.btn-zona[data-zona="Todas"]');
+      if (btnTodas) btnTodas.classList.add('activo');
+
+      cerrarTarjeta();
+      map.flyTo(CENTRO_INICIAL, ZOOM_INICIAL, { duration: 1.0 });
     }
 
     function enviarAlDashboard() {
@@ -377,6 +483,7 @@
       }, '*');
     }
 
+    // 5. Buscador de direcciones usando Mapbox Geocoding API
     function buscarDireccion() {
       var texto = document.getElementById('input-direccion').value.trim();
       var estado = document.getElementById('estado-dir');
@@ -393,36 +500,37 @@
       if (coincidenciaLocal) {
         map.flyTo([coincidenciaLocal['Latitud'], coincidenciaLocal['Longitud']], 17, { duration: 1.2 });
         mostrarTarjetaGrupo(coincidenciaLocal);
-        estado.textContent = 'Ubicado en grupo: ' + coincidenciaLocal['Grupo familiar'];
+        estado.textContent = 'Ubicado: ' + coincidenciaLocal['Grupo familiar'];
         estado.style.color = '#16a34a';
         return;
       }
 
       var consultaLimpia = texto.replace(/\(.*?\)/g, '').replace(/mz\.?\s*[a-z0-9]+/gi, '').replace(/lt\.?\s*[a-z0-9]+/gi, '').trim();
-      var url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=pe&q=' + encodeURIComponent(consultaLimpia + ', Lima, Peru');
+      var url = 'https://api.mapbox.com/geocoding/v5/mapbox.places/' + encodeURIComponent(consultaLimpia + ', Lima, Peru') + '.json?country=pe&proximity=-76.895,-12.025&limit=1&access_token=' + TOKEN_MAPBOX;
 
       fetch(url)
         .then(res => res.json())
-        .then(resultados => {
-          if (resultados && resultados.length > 0) {
-            var lat = parseFloat(resultados[0].lat);
-            var lon = parseFloat(resultados[0].lon);
+        .then(data => {
+          if (data.features && data.features.length > 0) {
+            var coords = data.features[0].center;
+            var lon = coords[0];
+            var lat = coords[1];
 
             if (marcadorBusqueda) map.removeLayer(marcadorBusqueda);
             marcadorBusqueda = L.marker([lat, lon]).addTo(map)
-              .bindPopup('<b>Ubicación encontrada:</b><br/>' + resultados[0].display_name)
+              .bindPopup('<b>Ubicación encontrada:</b><br/>' + data.features[0].place_name)
               .openPopup();
 
             map.flyTo([lat, lon], 17, { duration: 1.5 });
             estado.textContent = 'Mapa centrado en la dirección';
             estado.style.color = '#16a34a';
           } else {
-            estado.textContent = 'No se encontró exacta. Prueba con: Vía + Distrito';
+            estado.textContent = 'No encontrada. Prueba: Vía + Distrito';
             estado.style.color = '#dc2626';
           }
         })
         .catch(() => {
-          estado.textContent = 'Sin conexión para buscar calles nuevas';
+          estado.textContent = 'Error con el buscador de Mapbox';
           estado.style.color = '#dc2626';
         });
     }
