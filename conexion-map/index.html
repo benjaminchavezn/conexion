@@ -58,13 +58,42 @@
     .titulo-panel { font-size: 15px; font-weight: 700; color: #1e293b; display: flex; justify-content: space-between; align-items: center; }
     .contador { font-size: 12px; background-color: #e2e8f0; padding: 2px 8px; border-radius: 10px; color: #334155; }
     
-    .grupo-input { display: flex; gap: 6px; }
+    .grupo-input { display: flex; gap: 6px; position: relative; }
     .input-texto {
       width: 100%; padding: 8px 10px; border: 1px solid #cbd5e1;
       border-radius: 8px; font-size: 13px; outline: none;
       background-color: #ffffff !important; color: #0f172a !important;
     }
     .input-texto:focus { border-color: #2563eb; }
+
+    /* Lista desplegable de sugerencias de direcciones */
+    #lista-sugerencias {
+      position: absolute;
+      top: 38px;
+      left: 0;
+      right: 0;
+      background-color: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.16);
+      z-index: 2000;
+      max-height: 190px;
+      overflow-y: auto;
+      display: none;
+      flex-direction: column;
+    }
+    .item-sugerencia {
+      padding: 8px 10px;
+      font-size: 12px;
+      color: #1e293b;
+      border-bottom: 1px solid #f1f5f9;
+      cursor: pointer;
+      text-align: left;
+    }
+    .item-sugerencia:last-child { border-bottom: none; }
+    .item-sugerencia:hover { background-color: #eff6ff; color: #1d4ed8; }
+    .item-sugerencia b { display: block; font-size: 12.5px; color: #0f172a; }
+    .item-sugerencia span { font-size: 11px; color: #64748b; }
 
     .btn-ir {
       background-color: #2563eb !important; color: #ffffff !important; border: none; border-radius: 8px;
@@ -282,13 +311,14 @@
       <span class="contador" id="contador">41</span>
     </div>
 
-    <!-- 1. Buscador de direcciones + Botón Clear -->
+    <!-- 1. Buscador de direcciones + Botón Clear + Lista de sugerencias -->
     <div class="grupo-input">
-      <input type="text" id="input-direccion" class="input-texto" placeholder="Ej: Av. Estrella 617, Ate o Pariachi..." />
+      <input type="text" id="input-direccion" class="input-texto" placeholder="Ej: Real Plaza Puruchuco, Av. Estrella 617..." autocomplete="off" />
       <button class="btn-ir" onclick="buscarDireccion()">Ir</button>
+      <div id="lista-sugerencias"></div>
     </div>
     <div class="fila-estado-clear">
-      <span id="estado-dir">Escribe una vía, sector o distrito</span>
+      <span id="estado-dir">Escribe un lugar, vía o sector</span>
       <button type="button" class="btn-clear" onclick="limpiarTodo()" title="Limpiar búsqueda y quitar selección">Clear</button>
     </div>
 
@@ -479,7 +509,6 @@
       }
     }
 
-    // Inicia automáticamente la detección de ubicación al abrir el mapa
     iniciarRastreoGPS();
 
     // 3. Lógica de lengüeta retraíble
@@ -599,10 +628,11 @@
     function limpiarTodo() {
       document.getElementById('input-direccion').value = '';
       document.getElementById('buscador').value = '';
+      document.getElementById('lista-sugerencias').style.display = 'none';
       textoBusqueda = '';
 
       var estado = document.getElementById('estado-dir');
-      estado.textContent = 'Escribe una vía, sector o distrito';
+      estado.textContent = 'Escribe un lugar, vía o sector';
       estado.style.color = '#64748b';
 
       if (marcadorBusqueda) {
@@ -627,15 +657,31 @@
       }, '*');
     }
 
-    // 6. Buscador de direcciones usando Mapbox Geocoding API
+    // 6. Buscador mejorado (Mapbox Search Box + Nominatim OpenStreetMap para centros comerciales y POI)
+    function irACoordenada(lat, lon, nombreLugar) {
+      if (marcadorBusqueda) map.removeLayer(marcadorBusqueda);
+      marcadorBusqueda = L.marker([lat, lon]).addTo(map)
+        .bindPopup('<b>Ubicación encontrada:</b><br/>' + nombreLugar)
+        .openPopup();
+
+      map.flyTo([lat, lon], 17, { duration: 1.4 });
+      var estado = document.getElementById('estado-dir');
+      estado.textContent = 'Ubicado: ' + nombreLugar.split(',').slice(0, 2).join(',');
+      estado.style.color = '#16a34a';
+      document.getElementById('lista-sugerencias').style.display = 'none';
+    }
+
     function buscarDireccion() {
       var texto = document.getElementById('input-direccion').value.trim();
       var estado = document.getElementById('estado-dir');
+      var lista = document.getElementById('lista-sugerencias');
       if (!texto) return;
 
-      estado.textContent = 'Buscando ubicación...';
+      estado.textContent = 'Buscando "' + texto + '"...';
       estado.style.color = '#2563eb';
+      lista.style.display = 'none';
 
+      // 1. Primero buscamos coincidencias exactas dentro de tus 41 grupos
       var q = texto.toLowerCase();
       var coincidenciaLocal = datosCompletos.find(function (g) {
         return g['Dirección'].toLowerCase().includes(q) || g['Grupo familiar'].toLowerCase().includes(q);
@@ -644,43 +690,77 @@
       if (coincidenciaLocal) {
         map.flyTo([coincidenciaLocal['Latitud'], coincidenciaLocal['Longitud']], 17, { duration: 1.2 });
         mostrarTarjetaGrupo(coincidenciaLocal);
-        estado.textContent = 'Ubicado: ' + coincidenciaLocal['Grupo familiar'];
+        estado.textContent = 'Grupo ubicado: ' + coincidenciaLocal['Grupo familiar'];
         estado.style.color = '#16a34a';
         return;
       }
 
-      var consultaLimpia = texto.replace(/\(.*?\)/g, '').replace(/mz\.?\s*[a-z0-9]+/gi, '').replace(/lt\.?\s*[a-z0-9]+/gi, '').trim();
-      var url = 'https://api.mapbox.com/geocoding/v5/mapbox.places/' + encodeURIComponent(consultaLimpia + ', Lima, Peru') + '.json?country=pe&proximity=-76.895,-12.025&limit=1&access_token=' + TOKEN_MAPBOX;
+      // 2. Limpiamos abreviaturas de loteo manteniendo el nombre completo del lugar/avenida
+      var consultaLimpia = texto
+        .replace(/\(.*?\)/g, ' ')
+        .replace(/\bmz\.?\s*[a-z0-9-]+/gi, ' ')
+        .replace(/\blt\.?\s*[a-z0-9-]+/gi, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
 
-      fetch(url)
+      // Consultamos OpenStreetMap Nominatim (excelente para centros comerciales como Real Plaza Puruchuco, parques, colegios y calles de Lima)
+      // con vista priorizada en Lima Este (-77.05,-12.15 a -76.75,-11.90)
+      var urlNominatim = 'https://nominatim.openstreetmap.org/search?format=json&countrycodes=pe&limit=5&viewbox=-77.05,-12.15,-76.75,-11.90&bounded=0&q=' + encodeURIComponent(consultaLimpia + ', Lima');
+
+      fetch(urlNominatim, { headers: { 'Accept-Language': 'es' } })
         .then(res => res.json())
-        .then(data => {
-          if (data.features && data.features.length > 0) {
-            var coords = data.features[0].center;
-            var lon = coords[0];
-            var lat = coords[1];
+        .then(resultados => {
+          if (resultados && resultados.length > 0) {
+            // Vamos directo al mejor resultado
+            var mejor = resultados[0];
+            irACoordenada(parseFloat(mejor.lat), parseFloat(mejor.lon), mejor.display_name);
 
-            if (marcadorBusqueda) map.removeLayer(marcadorBusqueda);
-            marcadorBusqueda = L.marker([lat, lon]).addTo(map)
-              .bindPopup('<b>Ubicación encontrada:</b><br/>' + data.features[0].place_name)
-              .openPopup();
-
-            map.flyTo([lat, lon], 17, { duration: 1.5 });
-            estado.textContent = 'Mapa centrado en la dirección';
-            estado.style.color = '#16a34a';
+            // Si hay más de 1 coincidencia, mostramos opciones debajo por si quiere elegir otra
+            if (resultados.length > 1) {
+              lista.innerHTML = '';
+              resultados.forEach(function (item) {
+                var partes = item.display_name.split(',');
+                var div = document.createElement('div');
+                div.className = 'item-sugerencia';
+                div.innerHTML = '<b>' + partes[0] + '</b><span>' + partes.slice(1, 4).join(', ') + '</span>';
+                div.onclick = function () {
+                  irACoordenada(parseFloat(item.lat), parseFloat(item.lon), item.display_name);
+                };
+                lista.appendChild(div);
+              });
+              lista.style.display = 'flex';
+            }
           } else {
-            estado.textContent = 'No encontrada. Prueba: Vía + Distrito';
-            estado.style.color = '#dc2626';
+            // Respaldo con Mapbox Geocoding si Nominatim no encontró la vía
+            var urlMapbox = 'https://api.mapbox.com/geocoding/v5/mapbox.places/' + encodeURIComponent(consultaLimpia + ', Lima, Peru') + '.json?country=pe&proximity=-76.895,-12.025&types=poi,address,neighborhood,locality,place&limit=5&access_token=' + TOKEN_MAPBOX;
+            return fetch(urlMapbox)
+              .then(r => r.json())
+              .then(mb => {
+                if (mb.features && mb.features.length > 0) {
+                  var f = mb.features[0];
+                  irACoordenada(f.center[1], f.center[0], f.place_name);
+                } else {
+                  estado.textContent = 'No encontrado. Prueba agregar el distrito (ej. Ate)';
+                  estado.style.color = '#dc2626';
+                }
+              });
           }
         })
         .catch(() => {
-          estado.textContent = 'Error con el buscador de Mapbox';
+          estado.textContent = 'Error de conexión al buscar dirección';
           estado.style.color = '#dc2626';
         });
     }
 
     document.getElementById('input-direccion').addEventListener('keypress', function (e) {
       if (e.key === 'Enter') buscarDireccion();
+    });
+
+    // Ocultar sugerencias si hace clic fuera del buscador
+    document.addEventListener('click', function (e) {
+      if (!e.target.closest('.grupo-input')) {
+        document.getElementById('lista-sugerencias').style.display = 'none';
+      }
     });
 
     document.querySelectorAll('.btn-zona').forEach(function (btn) {
