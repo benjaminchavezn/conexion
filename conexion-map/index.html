@@ -23,7 +23,6 @@
       background-color: #ffffff;
       padding: 12px; border-radius: 12px;
       box-shadow: 0 4px 20px rgba(0,0,0,0.18);
-      /* En móvil deja espacio libre a la derecha para que la lengüeta nunca se salga */
       width: min(320px, calc(100vw - 68px));
       display: flex; flex-direction: column; gap: 8px;
       transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -308,7 +307,7 @@
     <!-- 1. Buscador de direcciones + Botón Clear + Lista de sugerencias -->
     <div class="grupo-input">
       <input type="text" id="input-direccion" class="input-texto" placeholder="Ej: Real Plaza Puruchuco, Av. Estrella..." autocomplete="off" />
-      <button class="btn-ir" onclick="buscarDireccion()">Ir</button>
+      <button type="button" class="btn-ir" onclick="buscarDireccion()">Ir</button>
       <div id="lista-sugerencias"></div>
     </div>
     <div class="fila-estado-clear">
@@ -328,9 +327,9 @@
       <button class="btn-zona" data-zona="Verde"><i class="dot" style="background:#16a34a;"></i>Verde</button>
     </div>
 
-    <!-- 4. Selector de Mapa Base -->
+    <!-- 4. Selector de Mapa Base Ultraligero -->
     <div class="selector-mapa">
-      <button class="btn-capa activo" onclick="cambiarMapaBase('mapboxGris', this)">Mapbox Urbano</button>
+      <button class="btn-capa activo" onclick="cambiarMapaBase('esriGris', this)">Urbano Ligero</button>
       <button class="btn-capa" onclick="cambiarMapaBase('osmLotes', this)">Manzanas / Lotes</button>
       <button class="btn-capa" onclick="cambiarMapaBase('googleSatelite', this)">Satélite Google</button>
     </div>
@@ -355,7 +354,7 @@
   <div id="mapa-leaflet"></div>
 
   <script>
-    // Token público de Mapbox dividido para compatibilidad con GitHub
+    // Token público de Mapbox dividido (usado como respaldo para búsqueda)
     var TOKEN_MAPBOX = 'pk.' + 'eyJ1IjoiYmVuamFtaW5jaGF2ZXpuIiwiYSI6ImNtd3A1NmdscTBjZDkzMW9nMWFrYzZtMWYifQ.XZgXno3dyyHVXNzf7cCvQw';
 
     var datosCompletos = [
@@ -405,29 +404,46 @@
     var CENTRO_INICIAL = [-12.025, -76.895];
     var ZOOM_INICIAL = 13;
 
-    // 1. Iniciar Leaflet
-    var map = L.map('mapa-leaflet', { zoomControl: false, scrollWheelZoom: true }).setView(CENTRO_INICIAL, ZOOM_INICIAL);
+    // 1. Iniciar Leaflet con renderizado rápido y limpio
+    var map = L.map('mapa-leaflet', {
+      zoomControl: false,
+      scrollWheelZoom: true,
+      fadeAnimation: false // Evita cuadros grises intermedios en móvil
+    }).setView(CENTRO_INICIAL, ZOOM_INICIAL);
+
     L.control.zoom({ position: 'bottomleft' }).addTo(map);
 
-    // Estilo gris claro minimalista tipo Rappi (Mapbox light-v11)
+    // Mapas base ultraligeros (256px en lugar de 512px -> cargan 4 veces más rápido en móvil)
     var capasBase = {
-      mapboxGris: L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/light-v11/tiles/{z}/{x}/{y}?access_token=' + TOKEN_MAPBOX, {
-        attribution: '&copy; Mapbox &copy; OpenStreetMap',
-        tileSize: 512,
-        zoomOffset: -1,
-        maxZoom: 20
-      }),
+      // Estilo gris claro sofisticado tipo Rappi/Uber (Esri World Light Gray Canvas - ultrarrápido y con etiquetas claras)
+      esriGris: L.layerGroup([
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+          attribution: 'Tiles &copy; Esri',
+          maxZoom: 19,
+          maxNativeZoom: 16,
+          keepBuffer: 4
+        }),
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}', {
+          maxZoom: 19,
+          maxNativeZoom: 16,
+          keepBuffer: 4
+        })
+      ]),
+      // Manzanas y Lotes detallados (OpenStreetMap estándar)
       osmLotes: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors',
-        maxZoom: 19
+        maxZoom: 19,
+        keepBuffer: 4
       }),
+      // Vista Satelital Híbrida de Google
       googleSatelite: L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
         attribution: '&copy; Google Maps',
-        maxZoom: 20
+        maxZoom: 20,
+        keepBuffer: 4
       })
     };
 
-    var capaActual = capasBase.mapboxGris.addTo(map);
+    var capaActual = capasBase.esriGris.addTo(map);
 
     if (typeof mapaLima !== 'undefined') {
       L.geoJSON(mapaLima, {
@@ -652,13 +668,22 @@
       }, '*');
     }
 
-    // 6. Buscador sin globo fijo estorbando (solo pin y tooltip al tocarlo)
+    // 6. Buscador que oculta automáticamente el teclado del móvil al presionar Ir
+    function ocultarTecladoMovil() {
+      var inputDir = document.getElementById('input-direccion');
+      var inputBus = document.getElementById('buscador');
+      if (inputDir) inputDir.blur();
+      if (inputBus) inputBus.blur();
+      if (document.activeElement) document.activeElement.blur();
+    }
+
     function irACoordenada(lat, lon, nombreLugar) {
+      ocultarTecladoMovil();
       if (marcadorBusqueda) map.removeLayer(marcadorBusqueda);
       marcadorBusqueda = L.marker([lat, lon]).addTo(map)
         .bindTooltip(nombreLugar.split(',').slice(0, 2).join(','), { direction: 'top' });
 
-      map.flyTo([lat, lon], 17, { duration: 1.4 });
+      map.flyTo([lat, lon], 16, { duration: 1.2 });
       var estado = document.getElementById('estado-dir');
       estado.textContent = 'Ubicado: ' + nombreLugar.split(',').slice(0, 2).join(',');
       estado.style.color = '#16a34a';
@@ -666,6 +691,9 @@
     }
 
     function buscarDireccion() {
+      // Quita el foco inmediatamente para cerrar el teclado del teléfono
+      ocultarTecladoMovil();
+
       var texto = document.getElementById('input-direccion').value.trim();
       var estado = document.getElementById('estado-dir');
       var lista = document.getElementById('lista-sugerencias');
@@ -681,7 +709,7 @@
       });
 
       if (coincidenciaLocal) {
-        map.flyTo([coincidenciaLocal['Latitud'], coincidenciaLocal['Longitud']], 17, { duration: 1.2 });
+        map.flyTo([coincidenciaLocal['Latitud'], coincidenciaLocal['Longitud']], 16, { duration: 1.2 });
         mostrarTarjetaGrupo(coincidenciaLocal);
         estado.textContent = 'Grupo ubicado: ' + coincidenciaLocal['Grupo familiar'];
         estado.style.color = '#16a34a';
@@ -740,7 +768,10 @@
     }
 
     document.getElementById('input-direccion').addEventListener('keypress', function (e) {
-      if (e.key === 'Enter') buscarDireccion();
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        buscarDireccion();
+      }
     });
 
     document.addEventListener('click', function (e) {
