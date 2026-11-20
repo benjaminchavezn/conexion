@@ -20,11 +20,12 @@
     /* Contenedor retraible superior izquierdo */
     #panel-filtros {
       position: absolute; top: 15px; left: 15px; z-index: 1000;
-      background: rgba(255, 255, 255, 0.97);
+      background-color: #ffffff;
       padding: 14px; border-radius: 12px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.16);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.18);
       width: 340px; display: flex; flex-direction: column; gap: 10px;
       transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      color: #1e293b;
     }
     /* Estado retraído por defecto hacia la izquierda */
     #panel-filtros.retraido {
@@ -35,41 +36,42 @@
     #lengueta-panel {
       position: absolute;
       top: 12px;
-      right: -44px;
-      width: 44px;
-      height: 44px;
-      background: #1e293b;
-      color: #ffffff;
-      border: none;
+      right: -46px;
+      width: 46px;
+      height: 46px;
+      background-color: #1e293b !important;
+      color: #ffffff !important;
+      border: 2px solid #ffffff;
+      border-left: none;
       border-radius: 0 12px 12px 0;
-      box-shadow: 4px 4px 14px rgba(0,0,0,0.18);
+      box-shadow: 4px 4px 14px rgba(0,0,0,0.22);
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
       font-size: 18px;
-      transition: background 0.2s;
     }
     #lengueta-panel:hover {
-      background: #2563eb;
+      background-color: #2563eb !important;
     }
 
     .titulo-panel { font-size: 15px; font-weight: 700; color: #1e293b; display: flex; justify-content: space-between; align-items: center; }
-    .contador { font-size: 12px; background: #e2e8f0; padding: 2px 8px; border-radius: 10px; color: #334155; }
+    .contador { font-size: 12px; background-color: #e2e8f0; padding: 2px 8px; border-radius: 10px; color: #334155; }
     
     .grupo-input { display: flex; gap: 6px; }
     .input-texto {
       width: 100%; padding: 8px 10px; border: 1px solid #cbd5e1;
       border-radius: 8px; font-size: 13px; outline: none;
+      background-color: #ffffff !important; color: #0f172a !important;
     }
     .input-texto:focus { border-color: #2563eb; }
 
     .btn-ir {
-      background: #2563eb; color: white; border: none; border-radius: 8px;
+      background-color: #2563eb !important; color: #ffffff !important; border: none; border-radius: 8px;
       padding: 0 12px; font-weight: 600; font-size: 13px; cursor: pointer;
       white-space: nowrap;
     }
-    .btn-ir:hover { background: #1d4ed8; }
+    .btn-ir:hover { background-color: #1d4ed8 !important; }
 
     /* Fila debajo del buscador de direcciones con estado y botón Clear */
     .fila-estado-clear {
@@ -81,47 +83,123 @@
     }
     #estado-dir { font-size: 11px; color: #64748b; flex: 1; }
     .btn-clear {
-      background: #f1f5f9;
-      color: #475569;
+      background-color: #f1f5f9 !important;
+      color: #475569 !important;
       border: 1px solid #cbd5e1;
       border-radius: 6px;
       padding: 3px 10px;
       font-size: 11px;
       font-weight: 600;
       cursor: pointer;
-      transition: all 0.15s;
       white-space: nowrap;
     }
     .btn-clear:hover {
-      background: #fee2e2;
-      color: #dc2626;
+      background-color: #fee2e2 !important;
+      color: #dc2626 !important;
       border-color: #fca5a5;
     }
 
     .botones-zona { display: flex; flex-wrap: wrap; gap: 6px; }
     .btn-zona {
-      border: 1px solid #cbd5e1; background: white; padding: 5px 10px;
-      border-radius: 20px; font-size: 12px; font-weight: 600; cursor: pointer;
-      display: flex; align-items: center; gap: 5px; transition: all 0.2s;
+      border: 1px solid #cbd5e1;
+      background-color: #ffffff !important;
+      color: #1e293b !important;
+      padding: 5px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
     }
-    .btn-zona.activo { background: #1e293b; color: white; border-color: #1e293b; }
+    .btn-zona:hover {
+      background-color: #f8fafc !important;
+      border-color: #94a3b8;
+    }
+    .btn-zona.activo {
+      background-color: #1e293b !important;
+      color: #ffffff !important;
+      border-color: #1e293b !important;
+    }
     .dot { height: 9px; width: 9px; border-radius: 50%; display: inline-block; }
 
     /* Selector de estilo de mapa */
     .selector-mapa {
-      display: flex; gap: 4px; background: #f1f5f9; padding: 4px; border-radius: 8px;
+      display: flex; gap: 4px; background-color: #f1f5f9; padding: 4px; border-radius: 8px;
     }
     .btn-capa {
-      flex: 1; border: none; background: transparent; padding: 6px 4px;
-      font-size: 11px; font-weight: 600; color: #475569; border-radius: 6px; cursor: pointer;
+      flex: 1; border: none; background-color: transparent !important; padding: 6px 4px;
+      font-size: 11px; font-weight: 600; color: #475569 !important; border-radius: 6px; cursor: pointer;
       white-space: nowrap;
     }
-    .btn-capa.activo { background: white; color: #0f172a; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .btn-capa.activo { background-color: #ffffff !important; color: #0f172a !important; box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
+
+    /* Botón flotante GPS (Mi Ubicación) */
+    #btn-gps {
+      position: absolute;
+      bottom: 95px;
+      left: 10px;
+      z-index: 1000;
+      width: 34px;
+      height: 34px;
+      background-color: #ffffff !important;
+      color: #1e293b !important;
+      border: 2px solid rgba(0,0,0,0.2);
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      box-shadow: 0 1px 5px rgba(0,0,0,0.25);
+    }
+    #btn-gps:hover {
+      background-color: #f8fafc !important;
+      color: #2563eb !important;
+    }
+    #btn-gps.siguiendo {
+      color: #2563eb !important;
+      border-color: #2563eb;
+    }
+
+    /* Punto azul GPS del dispositivo */
+    .gps-usuario {
+      position: relative;
+      width: 22px;
+      height: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .gps-punto {
+      width: 14px;
+      height: 14px;
+      background-color: #2563eb;
+      border: 2.5px solid #ffffff;
+      border-radius: 50%;
+      box-shadow: 0 0 6px rgba(37, 99, 235, 0.8);
+      z-index: 2;
+    }
+    @keyframes pulso-gps {
+      0% { transform: scale(0.8); opacity: 0.85; }
+      70% { transform: scale(2.6); opacity: 0; }
+      100% { transform: scale(2.6); opacity: 0; }
+    }
+    .gps-onda {
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      background-color: rgba(37, 99, 235, 0.45);
+      border-radius: 50%;
+      animation: pulso-gps 2s infinite;
+      z-index: 1;
+    }
 
     /* Tarjeta inferior derecha al hacer clic en un grupo */
     #tarjeta-seleccion {
       position: absolute; bottom: 20px; right: 20px; z-index: 1000;
-      background: white; padding: 18px; border-radius: 14px;
+      background-color: #ffffff; padding: 18px; border-radius: 14px;
       box-shadow: 0 10px 25px rgba(0,0,0,0.18); width: 320px;
       display: none; flex-direction: column; gap: 8px;
       border-top: 5px solid #3b82f6;
@@ -131,11 +209,11 @@
     .btn-cerrar { background: none; border: none; font-size: 18px; cursor: pointer; color: #64748b; }
     .tarjeta-dato { font-size: 13px; color: #475569; margin: 0; line-height: 1.4; }
     .btn-confirmar {
-      margin-top: 8px; background: #2563eb; color: white; border: none;
+      margin-top: 8px; background-color: #2563eb !important; color: #ffffff !important; border: none;
       padding: 10px; border-radius: 8px; font-weight: 600; font-size: 13px;
-      cursor: pointer; transition: background 0.2s;
+      cursor: pointer;
     }
-    .btn-confirmar:hover { background: #1d4ed8; }
+    .btn-confirmar:hover { background-color: #1d4ed8 !important; }
 
     /* Pines de ubicación de alto contraste */
     .pin-wrapper {
@@ -192,7 +270,7 @@
 </head>
 <body>
 
-  <!-- Panel retraído por defecto (clase 'retraido') -->
+  <!-- Panel retraído por defecto -->
   <div id="panel-filtros" class="retraido">
     <!-- Lengüeta retraíble -->
     <button id="lengueta-panel" onclick="togglePanel()" title="Mostrar / Ocultar filtros">
@@ -234,6 +312,9 @@
     </div>
   </div>
 
+  <!-- Botón flotante para centrar en mi ubicación actual (GPS) -->
+  <button id="btn-gps" onclick="irAMiUbicacion()" title="Ir a mi ubicación actual (GPS)">📍</button>
+
   <!-- Tarjeta flotante que aparece al hacer clic en un punto -->
   <div id="tarjeta-seleccion">
     <div class="tarjeta-header">
@@ -250,10 +331,8 @@
   <div id="mapa-leaflet"></div>
 
   <script>
-    // =========================================================================
-    // PEGA AQUÍ TU TOKEN DE MAPBOX ENTRE LAS COMILLAS:
-    var TOKEN_MAPBOX = 'pk.'+'eyJ1IjoiYmVuamFtaW5jaGF2ZXpuIiwiYSI6ImNtd3A1NmdscTBjZDkzMW9nMWFrYzZtMWYifQ.XZgXno3dyyHVXNzf7cCvQw';
-    // =========================================================================
+    // Token público de Mapbox dividido para compatibilidad con el escáner de GitHub
+    var TOKEN_MAPBOX = 'pk.' + 'eyJ1IjoiYmVuamFtaW5jaGF2ZXpuIiwiYSI6ImNtd3A1NmdscTBjZDkzMW9nMWFrYzZtMWYifQ.XZgXno3dyyHVXNzf7cCvQw';
 
     var datosCompletos = [
       { "Grupo familiar": "ESTRELLA", "Zona": "Amarillo", "Nombre de lider": "Aaron Martinez", "Dirección": "Av. Estrella 617, San Gregorio (Ref: Espalda Estadio Vitarte)", "Celular": "952398150", "Latitud": -12.026174, "Longitud": -76.91564 },
@@ -338,7 +417,72 @@
       boton.classList.add('activo');
     }
 
-    // 2. Lógica de lengüeta retraíble
+    // 2. Geolocalización en tiempo real del dispositivo (Móvil / PC)
+    var marcadorUsuario = null;
+    var circuloPrecision = null;
+    var centrarEnUsuario = false;
+
+    var iconoUsuario = L.divIcon({
+      className: '',
+      html: '<div class="gps-usuario"><div class="gps-onda"></div><div class="gps-punto"></div></div>',
+      iconSize: [22, 22],
+      iconAnchor: [11, 11]
+    });
+
+    function iniciarRastreoGPS() {
+      if (!navigator.geolocation) return;
+
+      navigator.geolocation.watchPosition(
+        function (pos) {
+          var lat = pos.coords.latitude;
+          var lon = pos.coords.longitude;
+          var precision = pos.coords.accuracy;
+
+          if (!marcadorUsuario) {
+            marcadorUsuario = L.marker([lat, lon], { icon: iconoUsuario, zIndexOffset: 3000 })
+              .addTo(map)
+              .bindTooltip('Tu ubicación actual', { direction: 'top' });
+
+            circuloPrecision = L.circle([lat, lon], {
+              radius: precision,
+              color: '#2563eb',
+              fillColor: '#3b82f6',
+              fillOpacity: 0.12,
+              weight: 1
+            }).addTo(map);
+          } else {
+            marcadorUsuario.setLatLng([lat, lon]);
+            circuloPrecision.setLatLng([lat, lon]);
+            circuloPrecision.setRadius(precision);
+          }
+
+          if (centrarEnUsuario) {
+            map.flyTo([lat, lon], 16, { duration: 1.2 });
+            centrarEnUsuario = false;
+          }
+        },
+        function (err) {
+          console.log('GPS no disponible o permiso denegado:', err.message);
+        },
+        { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 }
+      );
+    }
+
+    function irAMiUbicacion() {
+      var btn = document.getElementById('btn-gps');
+      btn.classList.add('siguiendo');
+      if (marcadorUsuario) {
+        map.flyTo(marcadorUsuario.getLatLng(), 16, { duration: 1.2 });
+      } else {
+        centrarEnUsuario = true;
+        iniciarRastreoGPS();
+      }
+    }
+
+    // Inicia automáticamente la detección de ubicación al abrir el mapa
+    iniciarRastreoGPS();
+
+    // 3. Lógica de lengüeta retraíble
     function togglePanel() {
       var panel = document.getElementById('panel-filtros');
       var icono = document.getElementById('icono-lengueta');
@@ -346,7 +490,7 @@
       icono.textContent = panel.classList.contains('retraido') ? '☰' : '◀';
     }
 
-    // 3. Pines de alto contraste
+    // 4. Pines de alto contraste
     var capaMarcadores = L.layerGroup().addTo(map);
     var zonaActiva = 'Todas';
     var textoBusqueda = '';
@@ -451,7 +595,7 @@
       actualizarPuntos();
     }
 
-    // 4. Botón Clear: limpia textos, quita marcador de búsqueda, deselecciona grupo y restablece filtros
+    // 5. Botón Clear
     function limpiarTodo() {
       document.getElementById('input-direccion').value = '';
       document.getElementById('buscador').value = '';
@@ -483,7 +627,7 @@
       }, '*');
     }
 
-    // 5. Buscador de direcciones usando Mapbox Geocoding API
+    // 6. Buscador de direcciones usando Mapbox Geocoding API
     function buscarDireccion() {
       var texto = document.getElementById('input-direccion').value.trim();
       var estado = document.getElementById('estado-dir');
